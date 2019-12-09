@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <iomanip>
 #include <stdexcept>
 #include <numeric>
 
@@ -74,6 +75,19 @@ namespace {
         Ensure(Body[4] == 0, "TEST: Body[4]");
         Ensure(Body[5] == 0, "TEST: Body[5]");
         return 0;
+      default:
+        return 0;
+      }
+    }
+
+  private:
+    void Ensure(bool cond, const std::string& msg) const {
+      if (!cond) {
+        for (auto val : Body) {
+          std::cout << std::hex << std::setw(2) << " 0x" << unsigned(val);
+        }
+        std::cout << std::endl;
+        ::Ensure(cond, msg);
       }
     }
   };
@@ -143,25 +157,30 @@ namespace {
 
 int main(int argc, const char* argv[]) {
   if (argc < 3) {
-    std::cout << argv[0] << " <device> [test|voltage|current|power|energy]\n";
+    std::cout << argv[0] << " <device> [test|voltage|current|power|energy|all]\n";
     return 1;
   }
   try {
     Device dev(argv[1]);
     const std::string mode(argv[2]);
+    const bool isAll = mode == "all";
     if (mode == "test") {
       dev.Get(TEST);
       std::cout << "Ok!" << std::endl;
-    } else if (mode == "voltage") {
-      std::cout << dev.Get(VOLTAGE) << std::endl;
-    } else if (mode == "current") {
-      std::cout << dev.Get(CURRENT) << std::endl;
-    } else if (mode == "power") {
-      std::cout << dev.Get(POWER) << std::endl;
-    } else if (mode == "energy") {
-      std::cout << dev.Get(ENERGY) << std::endl;
     } else {
-      Ensure(false, "Unknown mode " + mode);
+      const char* MODES[] = {"voltage", "current", "power", "energy"};
+      bool hasOutput = false;
+      for (int modeId = VOLTAGE; modeId <= ENERGY; ++modeId) {
+        const char* const modeName = MODES[modeId];
+        if (isAll) {
+          std::cout << modeName << ": ";
+        }
+        if (isAll || mode == modeName) {
+          std::cout << std::setprecision(7) << dev.Get(static_cast<Sensor>(modeId)) << std::endl;
+          hasOutput = true;
+        }
+      }
+      Ensure(hasOutput, "Unknown mode " + mode);
     }
     return 0;
   } catch (const std::exception& e) {
